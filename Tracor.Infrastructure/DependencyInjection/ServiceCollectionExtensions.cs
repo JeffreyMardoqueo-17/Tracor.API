@@ -4,6 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Tradecorp.Application.Abstractions.Persistence;
 using Tradecorp.Infrastructure.Data;
 using Tradecorp.Infrastructure.Persistence;
+using Tradecorp.Application.Abstractions.Services;
+using Tradecorp.Application.Abstractions.Security;
+using Tradecorp.Infrastructure.Services;
 
 namespace Tradecorp.Infrastructure.DependencyInjection;
 
@@ -16,6 +19,10 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IDbConnectionFactory, NpgsqlDbConnectionFactory>();
+        // Users, auth and security
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IJwtService, JwtService>();
 
         return services;
     }

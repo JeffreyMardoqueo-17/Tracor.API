@@ -2,6 +2,10 @@ namespace Tradecorp.Domain.Models.Entities;
 
 public class CicloPago
 {
+    /// <summary>
+    /// Gets or sets the ID of the payment cycle.
+    /// </summary>
+    /// <value></value>
     public int Id { get; set; }
     public string Nombre { get; set; } = string.Empty;
     public DateOnly FechaInicio { get; set; }
