@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Tracor.API/Tracor.API.csproj" />
+  <Project Path="Tracor.Application/Tracor.Application.csproj" />
+  <Project Path="Tracor.Domain/Tracor.Domain.csproj" />
+  <Project Path="Tracor.Infrastructure/Tracor.Infrastructure.csproj" />
+</Solution>
