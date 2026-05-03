@@ -1,4 +1,4 @@
-namespace Tracor.API
+namespace Tradecorp.API
 {
     public class WeatherForecast
     {

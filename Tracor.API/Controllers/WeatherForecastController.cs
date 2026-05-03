@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace Tracor.API.Controllers
+namespace Tradecorp.API.Controllers
 {
     [ApiController]
     [Route("[controller]")]

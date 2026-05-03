@@ -1,4 +1,4 @@
-﻿namespace Tracor.Application
+﻿namespace Tradecorp.Application
 {
     public class Class1
     {
