@@ -16,4 +16,5 @@ public class Usuario
     public ICollection<MovimientoContrato> MovimientosContrato { get; set; } = new List<MovimientoContrato>();
     public ICollection<Pago> PagosEjecutados { get; set; } = new List<Pago>();
     public ICollection<AsignacionPago> AsignacionesPago { get; set; } = new List<AsignacionPago>();
+    public ICollection<ContratoRelacion> RelacionesContratoEjecutadas { get; set; } = new List<ContratoRelacion>();
 }

@@ -4,5 +4,6 @@ public enum EstadoPago
 {
     Pendiente,
     Pagado,
-    Error
+    Error,
+    Anulado
 }

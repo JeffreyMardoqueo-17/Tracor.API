@@ -3,6 +3,7 @@ using Tradecorp.Application.Abstractions.Security;
 using Tradecorp.Application.Abstractions.Services;
 using Tradecorp.Application.DTOs;
 using Tradecorp.Domain.Models.Entities;
+using Tradecorp.Domain.Models.Enums;
 using BCrypt.Net;
 
 namespace Tradecorp.Infrastructure.Services;
@@ -36,20 +37,20 @@ public class UserService : IUserService
 
         user = await _repo.CreateAsync(user);
 
-        return new UserResponseDto(user.Id, user.Nombre, user.Email, user.Rol, user.Activo);
+        return new UserResponseDto(user.Id, user.Nombre, user.Email, user.Rol.ToString(), user.Activo);
     }
 
     public async Task<UserResponseDto?> GetByIdAsync(int id)
     {
         var u = await _repo.GetByIdAsync(id);
         if (u == null || !u.Activo) return null;
-        return new UserResponseDto(u.Id, u.Nombre, u.Email, u.Rol, u.Activo);
+        return new UserResponseDto(u.Id, u.Nombre, u.Email, u.Rol.ToString(), u.Activo);
     }
 
     public async Task<IEnumerable<UserResponseDto>> ListActiveAsync()
     {
         var list = await _repo.ListActiveAsync();
-        return list.Select(u => new UserResponseDto(u.Id, u.Nombre, u.Email, u.Rol, u.Activo));
+        return list.Select(u => new UserResponseDto(u.Id, u.Nombre, u.Email, u.Rol.ToString(), u.Activo));
     }
 
     public async Task UpdateAsync(int id, UserUpdateDto dto)
@@ -81,7 +82,7 @@ public class UserService : IUserService
         var token = _jwt.GenerateToken(u);
         var expires = _jwt.GetExpiryUtc();
 
-        var userDto = new UserResponseDto(u.Id, u.Nombre, u.Email, u.Rol, u.Activo);
+        var userDto = new UserResponseDto(u.Id, u.Nombre, u.Email, u.Rol.ToString(), u.Activo);
         return new AuthResponseDto(token, expires, userDto);
     }
 }

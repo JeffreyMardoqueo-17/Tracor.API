@@ -6,6 +6,7 @@ Esta solución queda preparada para levantar el backend y PostgreSQL con `docker
 
 - `api`: construye la imagen desde `Tracor.API/Dockerfile` (entrypoint: `Tradecorp.API.dll`) y expone la API en `http://localhost:8080`.
 - `db`: usa `postgres:16-alpine`, expone PostgreSQL en `localhost:5432` y monta `Tracor.Infrastructure/database/schema.sql` como script de inicialización.
+- `db`: se ejecuta en zona horaria UTC (`TZ=UTC`, `PGTZ=UTC`) para mantener consistencia en cálculos diarios y cortes.
 
 ## Cómo levantar todo
 

@@ -3,10 +3,13 @@ services:
     image: postgres:16-alpine
     container_name: tradecorp-db
     restart: unless-stopped
+    command: ["postgres", "-c", "timezone=UTC"]
     environment:
       POSTGRES_DB: Tradecorp
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      TZ: UTC
+      PGTZ: UTC
     ports:
       - "5432:5432"
     volumes:

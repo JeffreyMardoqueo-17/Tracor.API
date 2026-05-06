@@ -2,6 +2,6 @@ namespace Tradecorp.Domain.Models.Enums;
 
 public enum UsuarioRol
 {
-    Admin,
-    Ejecutivo
+    Admin = 1,
+    Ejecutivo = 2
 }

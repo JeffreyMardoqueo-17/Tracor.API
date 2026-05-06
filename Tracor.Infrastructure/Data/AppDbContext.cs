@@ -14,14 +14,21 @@ public class AppDbContext : DbContext
     public DbSet<Banco> Bancos => Set<Banco>();
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<ClienteCuenta> ClienteCuentas => Set<ClienteCuenta>();
+    public DbSet<ClienteBeneficiario> ClientesBeneficiarios => Set<ClienteBeneficiario>();
+    public DbSet<ClienteBeneficiarioHistorico> ClientesBeneficiariosHistorico => Set<ClienteBeneficiarioHistorico>();
     public DbSet<Contrato> Contratos => Set<Contrato>();
+    public DbSet<ContratoRelacion> ContratoRelaciones => Set<ContratoRelacion>();
     public DbSet<ConfiguracionContrato> ConfiguracionesContrato => Set<ConfiguracionContrato>();
+    public DbSet<ConfiguracionSistema> ConfiguracionesSistema => Set<ConfiguracionSistema>();
+    public DbSet<ConfiguracionCortePago> ConfiguracionesCortePago => Set<ConfiguracionCortePago>();
+    public DbSet<FechaCortePago> FechasCortePago => Set<FechaCortePago>();
     public DbSet<CicloPago> CiclosPago => Set<CicloPago>();
     public DbSet<PlanPago> PlanesPago => Set<PlanPago>();
     public DbSet<ReglaPago> ReglasPago => Set<ReglaPago>();
     public DbSet<CalculoPago> CalculosPago => Set<CalculoPago>();
     public DbSet<MovimientoContrato> MovimientosContrato => Set<MovimientoContrato>();
     public DbSet<Pago> Pagos => Set<Pago>();
+    public DbSet<DecisionPago> DecisionesPago => Set<DecisionPago>();
     public DbSet<AgendaPago> AgendaPagos => Set<AgendaPago>();
     public DbSet<AsignacionPago> AsignacionesPago => Set<AsignacionPago>();
     public DbSet<AsignacionDetalle> AsignacionDetalle => Set<AsignacionDetalle>();
@@ -34,14 +41,21 @@ public class AppDbContext : DbContext
         ConfigureBancos(modelBuilder);
         ConfigureClientes(modelBuilder);
         ConfigureClienteCuentas(modelBuilder);
+        ConfigureClienteBeneficiarios(modelBuilder);
+        ConfigureClienteBeneficiariosHistorico(modelBuilder);
         ConfigureContratos(modelBuilder);
+        ConfigureContratoRelaciones(modelBuilder);
         ConfigureConfiguracionContrato(modelBuilder);
+        ConfigureConfiguracionSistema(modelBuilder);
+        ConfigureConfiguracionCortePago(modelBuilder);
+        ConfigureFechasCortePago(modelBuilder);
         ConfigureCiclosPago(modelBuilder);
         ConfigurePlanesPago(modelBuilder);
         ConfigureReglasPago(modelBuilder);
         ConfigureCalculosPago(modelBuilder);
         ConfigureMovimientosContrato(modelBuilder);
         ConfigurePagos(modelBuilder);
+        ConfigureDecisionesPago(modelBuilder);
         ConfigureAgendaPagos(modelBuilder);
         ConfigureAsignacionesPago(modelBuilder);
         ConfigureAsignacionDetalle(modelBuilder);
@@ -56,10 +70,17 @@ public class AppDbContext : DbContext
         entity.Property(x => x.Nombre).HasMaxLength(150).IsRequired();
         entity.Property(x => x.Email).HasMaxLength(150).IsRequired();
         entity.Property(x => x.PasswordHash).HasMaxLength(255).IsRequired();
-        entity.Property(x => x.Rol).HasConversion<string>().HasMaxLength(50).IsRequired();
+
+        // Almacenamos como string para compatibilidad con la base de datos existente
+        entity.Property(x => x.Rol)
+                .HasConversion<string>()
+                .HasMaxLength(50)
+                .IsRequired();
+
         entity.Property(x => x.Activo).HasDefaultValue(true);
         entity.Property(x => x.FechaCreacion).HasDefaultValueSql("NOW()");
         entity.HasIndex(x => x.Email).IsUnique();
+
     }
 
     private static void ConfigureBancos(ModelBuilder modelBuilder)
@@ -132,12 +153,44 @@ public class AppDbContext : DbContext
         entity.Property(x => x.CapitalInicial).HasPrecision(18, 2);
         entity.Property(x => x.PorcentajeMensual).HasPrecision(5, 2);
         entity.Property(x => x.ComisionRetiro).HasPrecision(5, 2).HasDefaultValue(0m);
+        entity.Property(x => x.ModalidadRendimiento).HasConversion<string>().HasMaxLength(50).IsRequired();
+        entity.Property(x => x.PermiteUnificacion).HasDefaultValue(true);
         entity.Property(x => x.Activo).HasDefaultValue(true);
+        entity.Property(x => x.FechaCreacion).HasDefaultValueSql("NOW()");
         entity.HasIndex(x => x.NumeroContrato).IsUnique();
 
         entity.HasOne(x => x.Cliente)
             .WithMany(x => x.Contratos)
             .HasForeignKey(x => x.ClienteId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private static void ConfigureContratoRelaciones(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<ContratoRelacion>();
+
+        entity.ToTable("ContratoRelaciones");
+        entity.HasKey(x => x.Id);
+        entity.Property(x => x.TipoRelacion).HasConversion<string>().HasMaxLength(50).IsRequired();
+        entity.Property(x => x.MontoTransferido).HasPrecision(18, 2);
+        entity.Property(x => x.Observacion).HasMaxLength(500);
+        entity.Property(x => x.FechaRelacion).HasDefaultValueSql("NOW()");
+        entity.Property(x => x.GrupoOperacionId).HasDefaultValueSql("gen_random_uuid()");
+        entity.HasIndex(x => new { x.ContratoOrigenId, x.ContratoDestinoId, x.FechaRelacion });
+
+        entity.HasOne(x => x.ContratoOrigen)
+            .WithMany(x => x.RelacionesComoOrigen)
+            .HasForeignKey(x => x.ContratoOrigenId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(x => x.ContratoDestino)
+            .WithMany(x => x.RelacionesComoDestino)
+            .HasForeignKey(x => x.ContratoDestinoId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(x => x.Usuario)
+            .WithMany(x => x.RelacionesContratoEjecutadas)
+            .HasForeignKey(x => x.UsuarioId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 
@@ -155,6 +208,52 @@ public class AppDbContext : DbContext
         entity.HasOne(x => x.Contrato)
             .WithMany(x => x.ConfiguracionesContrato)
             .HasForeignKey(x => x.ContratoId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private static void ConfigureConfiguracionSistema(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<ConfiguracionSistema>();
+
+        entity.ToTable("ConfiguracionSistema");
+        entity.HasKey(x => x.Id);
+        entity.Property(x => x.DiasCuatrimestreBase).HasDefaultValue(120);
+        entity.Property(x => x.DiasMesBase).HasDefaultValue(30);
+        entity.Property(x => x.ComisionEmpresaPorcentaje).HasPrecision(5, 2).HasDefaultValue(5m);
+        entity.Property(x => x.UsarDiasExactosPrimerCuatrimestre).HasDefaultValue(true);
+        entity.Property(x => x.AplicarReglaAnioBisiesto).HasDefaultValue(true);
+        entity.Property(x => x.Activo).HasDefaultValue(true);
+        entity.Property(x => x.FechaActualizacion).HasDefaultValueSql("NOW()");
+    }
+
+    private static void ConfigureConfiguracionCortePago(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<ConfiguracionCortePago>();
+
+        entity.ToTable("ConfiguracionCortesPago");
+        entity.HasKey(x => x.Id);
+        entity.Property(x => x.Nombre).HasMaxLength(100).IsRequired();
+        entity.Property(x => x.Activo).HasDefaultValue(true);
+
+        entity.HasOne(x => x.ConfiguracionSistema)
+            .WithMany(x => x.CortesPago)
+            .HasForeignKey(x => x.ConfiguracionSistemaId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private static void ConfigureFechasCortePago(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<FechaCortePago>();
+
+        entity.ToTable("FechasCortePago", tableBuilder =>
+            tableBuilder.HasCheckConstraint("CK_FechasCortePago_Dia", "\"Dia\" BETWEEN 1 AND 31"));
+        entity.HasKey(x => x.Id);
+        entity.HasIndex(x => new { x.ConfiguracionCortePagoId, x.Orden }).IsUnique();
+        entity.HasIndex(x => new { x.ConfiguracionCortePagoId, x.Mes, x.Dia }).IsUnique();
+
+        entity.HasOne(x => x.ConfiguracionCortePago)
+            .WithMany(x => x.FechasCorte)
+            .HasForeignKey(x => x.ConfiguracionCortePagoId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 
@@ -205,7 +304,7 @@ public class AppDbContext : DbContext
         entity.ToTable("CalculoPagos");
         entity.HasKey(x => x.Id);
         entity.Property(x => x.MontoCalculado).HasPrecision(18, 2);
-        entity.HasIndex(x => new { x.ContratoId, x.CicloPagoId }).IsUnique();
+        entity.HasIndex(x => new { x.ContratoId, x.FechaCorte }).IsUnique();
 
         entity.HasOne(x => x.Contrato)
             .WithMany(x => x.CalculosPago)
@@ -255,6 +354,7 @@ public class AppDbContext : DbContext
         entity.Property(x => x.MontoEntregado).HasPrecision(18, 2);
         entity.Property(x => x.MetodoPago).HasConversion<string>().HasMaxLength(50).IsRequired();
         entity.Property(x => x.Estado).HasConversion<string>().HasMaxLength(50).IsRequired();
+        entity.Property(x => x.ModalidadRendimientoAlCierre).HasConversion<string>().HasMaxLength(50).IsRequired();
         entity.HasIndex(x => x.CalculoPagoId).IsUnique();
 
         entity.HasOne(x => x.CalculoPago)
@@ -285,6 +385,26 @@ public class AppDbContext : DbContext
         entity.HasOne(x => x.Banco)
             .WithMany(x => x.Pagos)
             .HasForeignKey(x => x.BancoId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private static void ConfigureDecisionesPago(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<DecisionPago>();
+
+        entity.ToTable("DecisionesPago");
+        entity.HasKey(x => x.Id);
+        entity.Property(x => x.TipoDecision).HasConversion<string>().HasMaxLength(50).IsRequired();
+        entity.Property(x => x.MetodoRetiro).HasConversion<string>().HasMaxLength(50);
+        entity.Property(x => x.MontoRetirado).HasPrecision(18, 2).HasDefaultValue(0m);
+        entity.Property(x => x.MontoReinvertido).HasPrecision(18, 2).HasDefaultValue(0m);
+        entity.Property(x => x.MontoAInteresCompuesto).HasPrecision(18, 2).HasDefaultValue(0m);
+        entity.Property(x => x.Observacion).HasMaxLength(500);
+        entity.Property(x => x.FechaDecision).HasDefaultValueSql("NOW()");
+
+        entity.HasOne(x => x.Pago)
+            .WithMany(x => x.Decisiones)
+            .HasForeignKey(x => x.PagoId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 
@@ -351,6 +471,72 @@ public class AppDbContext : DbContext
         entity.HasOne(x => x.Pago)
             .WithOne(x => x.AsignacionDetalle)
             .HasForeignKey<AsignacionDetalle>(x => x.PagoId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private static void ConfigureClienteBeneficiarios(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<ClienteBeneficiario>();
+
+        entity.ToTable("ClientesBeneficiarios");
+        entity.HasKey(x => x.Id);
+        entity.Property(x => x.NombreCompleto).HasMaxLength(200).IsRequired();
+        entity.Property(x => x.DUI).HasMaxLength(50);
+        entity.Property(x => x.Correo).HasMaxLength(150);
+        entity.Property(x => x.Telefono).HasMaxLength(50);
+        entity.Property(x => x.Direccion).HasMaxLength(500);
+        entity.Property(x => x.Porcentaje).HasPrecision(5, 2).IsRequired();
+        entity.Property(x => x.TipoRelacion)
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .IsRequired();
+        entity.Property(x => x.Estado)
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .IsRequired();
+        entity.Property(x => x.Notas).HasMaxLength(500);
+        entity.Property(x => x.FechaCreacion).HasDefaultValueSql("NOW()");
+        entity.Property(x => x.FechaActualizacion).HasDefaultValueSql("NOW()");
+
+        entity.HasIndex(x => x.ClienteId);
+        entity.HasIndex(x => new { x.ClienteId, x.Estado })
+            .HasFilter("\"Estado\" = 'Activo'");
+
+        entity.HasOne(x => x.Cliente)
+            .WithMany(x => x.Beneficiarios)
+            .HasForeignKey(x => x.ClienteId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+
+    private static void ConfigureClienteBeneficiariosHistorico(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<ClienteBeneficiarioHistorico>();
+
+        entity.ToTable("ClientesBeneficiariosHistorico");
+        entity.HasKey(x => x.Id);
+        entity.Property(x => x.NombreCompleto).HasMaxLength(200).IsRequired();
+        entity.Property(x => x.DUI).HasMaxLength(50);
+        entity.Property(x => x.PorcentajeAsignado).HasPrecision(5, 2).IsRequired();
+        entity.Property(x => x.TipoRelacion)
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .IsRequired();
+        entity.Property(x => x.Evento).HasMaxLength(200).IsRequired();
+        entity.Property(x => x.FechaEvento).HasDefaultValueSql("NOW()");
+        entity.Property(x => x.Notas).HasMaxLength(500);
+
+        entity.HasIndex(x => x.ClienteId);
+        entity.HasIndex(x => x.ClienteBeneficiarioId);
+        entity.HasIndex(x => x.FechaEvento);
+
+        entity.HasOne(x => x.ClienteBeneficiario)
+            .WithMany(x => x.Historico)
+            .HasForeignKey(x => x.ClienteBeneficiarioId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(x => x.Cliente)
+            .WithMany(x => x.BeneficiariosHistorico)
+            .HasForeignKey(x => x.ClienteId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

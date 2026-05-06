@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Tradecorp.Application.Abstractions.Services;
 using Tradecorp.Application.DTOs;
+using Tradecorp.Domain.Models.Enums;
 
 namespace Tradecorp.API.Controllers;
 
@@ -12,18 +13,12 @@ public class UsersController : ControllerBase
     private readonly IUserService _userService;
     public UsersController(IUserService userService) => _userService = userService;
 
+    // [Authorize]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] UserCreateDto dto)
     {
-        try
-        {
-            var user = await _userService.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var user = await _userService.CreateAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
     }
 
     [Authorize]
@@ -37,9 +32,19 @@ public class UsersController : ControllerBase
 
     [Authorize]
     [HttpGet]
-    public async Task<IActionResult> List()
+    public async Task<IActionResult> List([FromQuery] string? search, [FromQuery] int? rol)
     {
         var list = await _userService.ListActiveAsync();
+        if (rol.HasValue)
+        {
+            var rolString = rol.Value == 1 ? "Admin" : "Ejecutivo";
+            list = list.Where(u => u.Rol == rolString);
+        }
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            list = list.Where(u => u.Nombre.Contains(search, StringComparison.OrdinalIgnoreCase)
+                                 || u.Email.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
         return Ok(list);
     }
 
@@ -47,24 +52,15 @@ public class UsersController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UserUpdateDto dto)
     {
-        try
-        {
-            await _userService.UpdateAsync(id, dto);
-            return NoContent();
-        }
-        catch (KeyNotFoundException) { return NotFound(); }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        await _userService.UpdateAsync(id, dto);
+        return NoContent();
     }
 
     [Authorize]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        try
-        {
-            await _userService.SoftDeleteAsync(id);
-            return NoContent();
-        }
-        catch (KeyNotFoundException) { return NotFound(); }
+        await _userService.SoftDeleteAsync(id);
+        return NoContent();
     }
 }
