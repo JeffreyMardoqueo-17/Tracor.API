@@ -52,7 +52,22 @@ CREATE TABLE "Clientes" (
     "Activo" BOOLEAN NOT NULL DEFAULT TRUE,
     FOREIGN KEY ("UsuarioEjecutivoId") REFERENCES "Usuarios"("Id")
 );
+-- ////////este de aqui es u parche para mejorar las consultas en el futuro, se puede eliminar despues
+CREATE TABLE Pais (
+    "Id" SERIAL PRIMARY KEY,
+    "Nombre" VARCHAR(100) UNIQUE NOT NULL
+);
 
+-- tabla para guardar la direccion del cliente
+CREATE TABLE "ClienteDirecciones" (
+    "Id" SERIAL PRIMARY KEY,
+    "IdPais" INT NOT NULL,
+    "ClienteId" INT NOT NULL,
+    "Direccion" VARCHAR(500) NOT NULL,
+    FOREIGN KEY ("ClienteId") REFERENCES "Clientes"("Id") ON DELETE CASCADE,
+    FOREIGN KEY ("IdPais") REFERENCES "Pais"("Id")
+);
+-- ////////////////////fin del parche
 CREATE TABLE "ClientesBeneficiarios" (
     "Id" SERIAL PRIMARY KEY,
     "ClienteId" INT NOT NULL,

@@ -37,6 +37,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBancoRepository, BancoRepository>();
         services.AddScoped<IBancoService, BancoService>();
 
+        // Contratos
+        services.AddScoped<IContratoRepository, ContratoRepository>();
+        services.AddScoped<IContratoService, ContratoService>();
+
         return services;
     }
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using Tradecorp.Application.DTOs;
 using Tradecorp.Application.Abstractions.Services;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Tradecorp.API.Controllers;
 
@@ -42,13 +43,9 @@ public class ClientesController : ControllerBase
         {
             int usuarioId;
             if (request.UsuarioEjecutivoId.HasValue && request.UsuarioEjecutivoId.Value > 0)
-            {
                 usuarioId = request.UsuarioEjecutivoId.Value;
-            }
             else
-            {
                 usuarioId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
-            }
 
             if (usuarioId == 0)
                 return Unauthorized("No se pudo obtener el ID del usuario.");
@@ -77,6 +74,7 @@ public class ClientesController : ControllerBase
     /// Obtiene un cliente específico con todas sus relaciones
     /// </summary>
     [HttpGet("{id}")]
+    [EnableRateLimiting("clientesPolicy")] // Aplica limitacion para este enpoint
     [ProducesResponseType(typeof(ClienteResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -101,6 +99,7 @@ public class ClientesController : ControllerBase
     /// Obtiene un cliente por su código único
     /// </summary>
     [HttpGet("codigo/{codigoCliente}")]
+    [EnableRateLimiting("clientesPolicy")]
     [ProducesResponseType(typeof(ClienteResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -121,18 +120,54 @@ public class ClientesController : ControllerBase
         }
     }
 
+
+    /// <summary>
+    /// Obtiene todos los clientes de un ejecutivo especifico para que llos puedan editarlos    /// </summary>
+    [HttpGet("ejecutivo/{ejecutivoId}")]
+    [EnableRateLimiting("clientesPolicy")]
+    [ProducesResponseType(typeof(IEnumerable<ClienteResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IEnumerable<ClienteResponse>>> ObtenerClientesPorEjecutivo(int ejecutivoId)
+    {
+        try
+        {
+            var clientes = await _clienteService.ObtenerClientesPorEjecutivoAsync(ejecutivoId);
+            return Ok(clientes);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error al obtener clientes por ejecutivo: {ex.Message}", ex);
+            return StatusCode(500, new { error = "Error interno al obtener clientes." });
+        }
+    }
+
+
+
     /// <summary>
     /// Obtiene todos los clientes activos
+    /// Si el usuario es Ejecutivo, solo devuelve sus clientes asignados
+    /// Si el usuario es Admin, devuelve todos los clientes
     /// </summary>
     [HttpGet]
+    [EnableRateLimiting("clientesPolicy")]
     [ProducesResponseType(typeof(IEnumerable<ClienteResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IEnumerable<ClienteResponse>>> ObtenerClientes()
     {
         try
         {
-            var clientes = await _clienteService.ObtenerClientesActivosAsync();
-            return Ok(clientes);
+            var rol = User.FindFirstValue(ClaimTypes.Role);
+            var usuarioId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
+
+            if (rol == "Ejecutivo")
+            {
+                var clientes = await _clienteService.ObtenerClientesPorEjecutivoAsync(usuarioId);
+                return Ok(clientes);
+            }
+
+            var todosLosClientes = await _clienteService.ObtenerClientesActivosAsync();
+            return Ok(todosLosClientes);
         }
         catch (Exception ex)
         {
@@ -256,6 +291,7 @@ public class ClientesController : ControllerBase
     /// Obtiene un beneficiario específico
     /// </summary>
     [HttpGet("{clienteId}/beneficiarios/{beneficiarioId}")]
+    [EnableRateLimiting("clientesPolicy")]
     [ProducesResponseType(typeof(ClienteBeneficiarioResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -280,6 +316,7 @@ public class ClientesController : ControllerBase
     /// Obtiene todos los beneficiarios de un cliente
     /// </summary>
     [HttpGet("{clienteId}/beneficiarios")]
+    [EnableRateLimiting("clientesPolicy")]
     [ProducesResponseType(typeof(IEnumerable<ClienteBeneficiarioResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -305,6 +342,7 @@ public class ClientesController : ControllerBase
     /// Obtiene solo los beneficiarios activos de un cliente
     /// </summary>
     [HttpGet("{clienteId}/beneficiarios/activos")]
+    [EnableRateLimiting("clientesPolicy")]
     [ProducesResponseType(typeof(IEnumerable<ClienteBeneficiarioResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

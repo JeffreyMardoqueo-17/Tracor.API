@@ -9,6 +9,8 @@ using Tradecorp.Infrastructure.Data;
 using Tradecorp.Domain.Models.Entities;
 using Tradecorp.Domain.Models.Enums;
 using BCrypt.Net;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting; //esto es para evitar la sobre carga en el servidor
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +54,19 @@ builder.Services.AddInfrastructure(builder.Configuration);
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key not configured");
 var issuer = builder.Configuration["Jwt:Issuer"] ?? "Tradecorp";
 var audience = builder.Configuration["Jwt:Audience"] ?? "TradecorpClients";
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests; // Código 429
+
+    options.AddFixedWindowLimiter(policyName: "clientesPolicy", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 10; // Máximo 2 solicitudes
+        limiterOptions.Window = TimeSpan.FromSeconds(10); // En 10 segundos
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 0; // No encolar, rechazar inmediatamente
+    });
+});
 
 builder.Services.AddAuthentication(options =>
 {
@@ -144,7 +159,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
+app.UseRateLimiter();
 app.UseGlobalExceptionHandling();
 
 app.UseHttpsRedirection();
