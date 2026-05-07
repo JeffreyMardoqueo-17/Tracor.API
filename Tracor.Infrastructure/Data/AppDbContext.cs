@@ -160,13 +160,11 @@ public class AppDbContext : DbContext
         entity.HasKey(x => x.Id);
         entity.Property(x => x.NumeroContrato).HasMaxLength(50).IsRequired();
         entity.Property(x => x.CapitalInicial)
-            .HasField("_capitalInicial")
-            .UsePropertyAccessMode(PropertyAccessMode.Field)
-            .HasPrecision(18, 2);
+            .HasPrecision(18, 2)
+            .IsRequired();
         entity.Property(x => x.CapitalActual)
-            .HasField("_capitalActual")
-            .UsePropertyAccessMode(PropertyAccessMode.Field)
-            .HasPrecision(18, 2);
+            .HasPrecision(18, 2)
+            .IsRequired();
         entity.Property(x => x.PorcentajeMensual)
             .HasField("_porcentajeMensual")
             .UsePropertyAccessMode(PropertyAccessMode.Field)

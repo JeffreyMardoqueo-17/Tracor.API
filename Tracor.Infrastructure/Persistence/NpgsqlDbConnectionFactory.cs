@@ -1,5 +1,4 @@
 using System.Data;
-using Microsoft.Extensions.Configuration;
 using Npgsql;
 using Tradecorp.Application.Abstractions.Persistence;
 
@@ -7,16 +6,16 @@ namespace Tradecorp.Infrastructure.Persistence;
 
 public sealed class NpgsqlDbConnectionFactory : IDbConnectionFactory
 {
-    private readonly string connectionString;
+    private readonly string _connectionString;
 
-    public NpgsqlDbConnectionFactory(IConfiguration configuration)
+    public NpgsqlDbConnectionFactory(string connectionString)
     {
-        connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("No se encontro la cadena de conexion 'DefaultConnection'.");
+        _connectionString = connectionString
+            ?? throw new ArgumentNullException(nameof(connectionString));
     }
 
     public IDbConnection CreateConnection()
     {
-        return new NpgsqlConnection(connectionString);
+        return new NpgsqlConnection(_connectionString);
     }
 }

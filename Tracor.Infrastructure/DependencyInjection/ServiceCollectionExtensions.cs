@@ -19,8 +19,21 @@ public static class ServiceCollectionExtensions
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
-                npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.GetName().Name)));
-        services.AddScoped<IDbConnectionFactory, NpgsqlDbConnectionFactory>();
+            {
+                npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.GetName().Name);
+                npgsql.EnableRetryOnFailure(
+                    maxRetryCount: 3,
+                    maxRetryDelay: TimeSpan.FromSeconds(10),
+                    errorCodesToAdd: null);
+            }));
+
+        services.AddScoped<IDbConnectionFactory>(sp =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var cs = config.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("No se encontro la cadena de conexion 'DefaultConnection'.");
+            return new NpgsqlDbConnectionFactory(cs);
+        });
         
         // Users, auth and security
         services.AddScoped<IUserRepository, UserRepository>();

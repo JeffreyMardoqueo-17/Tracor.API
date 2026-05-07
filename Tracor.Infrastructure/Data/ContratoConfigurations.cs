@@ -21,14 +21,10 @@ public class ContratoConfiguration : IEntityTypeConfiguration<Contrato>
             .IsRequired();
 
         builder.Property(x => x.CapitalInicial)
-            .HasField("_capitalInicial")
-            .UsePropertyAccessMode(PropertyAccessMode.Field)
             .HasPrecision(18, 2)
             .IsRequired();
 
         builder.Property(x => x.CapitalActual)
-            .HasField("_capitalActual")
-            .UsePropertyAccessMode(PropertyAccessMode.Field)
             .HasPrecision(18, 2)
             .IsRequired();
 

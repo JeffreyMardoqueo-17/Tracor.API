@@ -1,39 +1,39 @@
 using Tradecorp.Infrastructure.DependencyInjection;
 using Tradecorp.API.Middleware;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Tradecorp.Infrastructure.Data;
-using Tradecorp.Domain.Models.Entities;
-using Tradecorp.Domain.Models.Enums;
-using BCrypt.Net;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using System.Text;
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.RateLimiting; //esto es para evitar la sobre carga en el servidor
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ==========================
+// CORS
+// ==========================
 var frontendOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>()
-    ?? [
+    ?? new[]
+    {
         "http://localhost:3000",
         "https://localhost:3000",
         "http://127.0.0.1:3000",
         "https://127.0.0.1:3000"
-    ];
-
-// Add services to the container.
+    };
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        //esto permite que los enums se serialicen como strings en lugar de numeros
-        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
-        //esto evita errores de referencia circular
-        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+        options.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
@@ -45,101 +45,115 @@ builder.Services.AddCors(options =>
             .AllowCredentials();
     });
 });
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+
+// ==========================
+// Swagger
+// ==========================
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// ==========================
+// Infrastructure
+// ==========================
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key not configured");
+// ==========================
+// JWT
+// ==========================
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Jwt:Key not configured");
+
 var issuer = builder.Configuration["Jwt:Issuer"] ?? "Tradecorp";
 var audience = builder.Configuration["Jwt:Audience"] ?? "TradecorpClients";
 
+// ==========================
+// Rate Limiting
+// ==========================
 builder.Services.AddRateLimiter(options =>
 {
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests; // Código 429
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    options.AddFixedWindowLimiter(policyName: "clientesPolicy", limiterOptions =>
+    options.AddFixedWindowLimiter("clientesPolicy", limiterOptions =>
     {
-        limiterOptions.PermitLimit = 10; // Máximo 10 solicitudes
-        limiterOptions.Window = TimeSpan.FromSeconds(10); // En 10 segundos
+        limiterOptions.PermitLimit = 10;
+        limiterOptions.Window = TimeSpan.FromSeconds(10);
         limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        limiterOptions.QueueLimit = 0; // No encolar, rechazar inmediatamente
+        limiterOptions.QueueLimit = 0;
     });
 });
 
+// ==========================
+// Authentication
+// ==========================
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
-    .AddJwtBearer(options =>
+.AddJwtBearer(options =>
+{
+    options.Events = new JwtBearerEvents
     {
-        options.Events = new JwtBearerEvents
+        OnMessageReceived = context =>
         {
-            OnMessageReceived = context =>
+            if (context.Request.Cookies.TryGetValue("access_token", out var token))
             {
-                if (context.Request.Cookies.TryGetValue("access_token", out var token))
-                {
-                    context.Token = token;
-                }
-
-                return Task.CompletedTask;
+                context.Token = token;
             }
-        };
+            return Task.CompletedTask;
+        }
+    };
 
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            ValidateIssuer = true,
-            ValidIssuer = issuer,
-            ValidateAudience = true,
-            ValidAudience = audience,
-            NameClaimType = ClaimTypes.Name,
-            RoleClaimType = ClaimTypes.Role,
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
-        };
-    });
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwtKey)),
+        ValidateIssuer = true,
+        ValidIssuer = issuer,
+        ValidateAudience = true,
+        ValidAudience = audience,
+        NameClaimType = ClaimTypes.Name,
+        RoleClaimType = ClaimTypes.Role,
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
+    };
+});
 
+// ==========================
+// BUILD
+// ==========================
 var app = builder.Build();
 
+// ==========================
+// 🔥 MIGRACIÓN AUTOMÁTICA 🔥
+// ==========================
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
-}
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-if (app.Environment.IsDevelopment())
-{
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    // Seed Usuario admin if not exists
-    if (!await db.Usuarios.AnyAsync())
+    try
     {
-        db.Usuarios.Add(new Usuario
-        {
-            Nombre = "Administrador",
-            Email = "admin@tradecorp.com",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
-            Rol = UsuarioRol.Admin,
-            Activo = true,
-            FechaCreacion = DateTime.UtcNow
-        });
-
-        await db.SaveChangesAsync();
-        app.Logger.LogWarning("Seed de desarrollo creado: admin@tradecorp.com / Admin123!");
+        dbContext.Database.Migrate();
+        Console.WriteLine("✅ Migraciones aplicadas correctamente");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("❌ Error aplicando migraciones");
+        Console.WriteLine(ex.Message);
+        throw;
     }
 }
 
-// Configure the HTTP request pipeline.
+// ==========================
+// Middleware
+// ==========================
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 app.UseRateLimiter();
 app.UseGlobalExceptionHandling();
 

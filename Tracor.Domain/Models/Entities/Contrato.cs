@@ -26,9 +26,16 @@ public class Contrato
     public string NumeroContrato { get; private set; } = string.Empty;
     public DateOnly FechaInicio { get; private set; }
 
-    // Capitals se manejan como propiedades internas con ValueObject
-    public decimal CapitalInicial => _capitalInicial.Valor;
-    public decimal CapitalActual => _capitalActual.Valor;
+    public decimal CapitalInicial
+    {
+        get => _capitalInicial.Valor;
+        private set => _capitalInicial = new Capital(value);
+    }
+    public decimal CapitalActual
+    {
+        get => _capitalActual.Valor;
+        private set => _capitalActual = new Capital(value);
+    }
     
     public decimal PorcentajeMensual => _porcentajeMensual;
     public decimal ComisionRetiro => _comisionRetiro;
