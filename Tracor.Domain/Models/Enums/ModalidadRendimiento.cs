@@ -1,7 +1,2 @@
-namespace Tradecorp.Domain.Models.Enums;
-
-public enum ModalidadRendimiento
-{
-    Normal,
-    InteresCompuesto
-}
+// Este archivo está vacío porque el enum ModalidadRendimiento
+// está definido en EstadoContrato.cs junto a otros enums del módulo de contratos.

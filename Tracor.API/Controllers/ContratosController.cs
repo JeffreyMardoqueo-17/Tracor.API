@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using Tradecorp.Application.DTOs;
 using Tradecorp.Application.Abstractions.Services;
 
@@ -25,13 +26,6 @@ public class ContratosController : ControllerBase
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    /// <summary>
-    /// Crea un nuevo contrato de inversión
-    /// Validaciones:
-    /// - Capital > 0
-    /// - Porcentaje entre 6% y 8.50%
-    /// - Cliente debe existir
-    /// </summary>
     [HttpPost]
     [ProducesResponseType(typeof(ContratoResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -40,7 +34,8 @@ public class ContratosController : ControllerBase
     {
         try
         {
-            var contratoCreado = await _contratoService.CrearContratoAsync(request);
+            var usuarioId = ObtenerUsuarioId();
+            var contratoCreado = await _contratoService.CrearContratoAsync(request, usuarioId);
             return CreatedAtAction(nameof(ObtenerContrato), new { id = contratoCreado.Id }, contratoCreado);
         }
         catch (ArgumentException ex)
@@ -60,9 +55,23 @@ public class ContratosController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Obtiene un contrato específico con todos sus detalles
-    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<ContratoListaResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IEnumerable<ContratoListaResponse>>> ObtenerContratos([FromQuery] ContratoFiltroRequest filtro)
+    {
+        try
+        {
+            var contratos = await _contratoService.ObtenerContratosAsync(filtro);
+            return Ok(contratos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error al listar contratos: {ex.Message}", ex);
+            return StatusCode(500, new { error = "Error interno al listar contratos." });
+        }
+    }
+
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(ContratoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -84,9 +93,6 @@ public class ContratosController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Obtiene todos los contratos de un cliente (activos e inactivos)
-    /// </summary>
     [HttpGet("cliente/{clienteId}")]
     [ProducesResponseType(typeof(IEnumerable<ContratoListaResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -104,9 +110,6 @@ public class ContratosController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Obtiene solo los contratos activos de un cliente
-    /// </summary>
     [HttpGet("cliente/{clienteId}/activos")]
     [ProducesResponseType(typeof(IEnumerable<ContratoListaResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -124,9 +127,6 @@ public class ContratosController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Obtiene todos los contratos activos del sistema
-    /// </summary>
     [HttpGet("activos")]
     [ProducesResponseType(typeof(IEnumerable<ContratoListaResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -144,10 +144,6 @@ public class ContratosController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Actualiza información de un contrato
-    /// Solo ciertos campos pueden editarse en contratos activos
-    /// </summary>
     [HttpPut("{id}")]
     [ProducesResponseType(typeof(ContratoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -157,7 +153,8 @@ public class ContratosController : ControllerBase
     {
         try
         {
-            var contratoActualizado = await _contratoService.ActualizarContratoAsync(id, request);
+            var usuarioId = ObtenerUsuarioId();
+            var contratoActualizado = await _contratoService.ActualizarContratoAsync(id, request, usuarioId);
             return Ok(contratoActualizado);
         }
         catch (InvalidOperationException ex)
@@ -177,18 +174,16 @@ public class ContratosController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Finaliza un contrato (marca como inactivo)
-    /// </summary>
     [HttpPost("{id}/finalizar")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> FinalizarContrato(int id)
+    public async Task<IActionResult> FinalizarContrato(int id, [FromBody] DesunificarContratoRequest? request)
     {
         try
         {
-            var resultado = await _contratoService.FinalizarContratoAsync(id);
+            var usuarioId = ObtenerUsuarioId();
+            var resultado = await _contratoService.FinalizarContratoAsync(id, usuarioId, request?.Observacion);
             if (!resultado)
                 return NotFound(new { error = $"Contrato con ID {id} no encontrado." });
 
@@ -201,10 +196,6 @@ public class ContratosController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Asigna beneficiarios a un contrato
-    /// Puede reutilizar beneficiarios existentes o crear nuevos
-    /// </summary>
     [HttpPost("{id}/beneficiarios")]
     [ProducesResponseType(typeof(IEnumerable<BeneficiarioContratoResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -216,7 +207,8 @@ public class ContratosController : ControllerBase
     {
         try
         {
-            var beneficiarios = await _contratoService.AsignarBeneficiariosAsync(id, request);
+            var usuarioId = ObtenerUsuarioId();
+            var beneficiarios = await _contratoService.AsignarBeneficiariosAsync(id, request, usuarioId);
             return Ok(beneficiarios);
         }
         catch (InvalidOperationException ex)
@@ -236,9 +228,6 @@ public class ContratosController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Obtiene los beneficiarios asignados a un contrato
-    /// </summary>
     [HttpGet("{id}/beneficiarios")]
     [ProducesResponseType(typeof(IEnumerable<BeneficiarioContratoResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -257,10 +246,66 @@ public class ContratosController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Unifica múltiples contratos en uno solo
-    /// Suma los capitales y marca los contratos origen como finalizados
-    /// </summary>
+    [HttpPost("{id}/reinversion")]
+    [ProducesResponseType(typeof(ContratoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ContratoResponse>> ReinvertirContrato(int id, [FromBody] ReinversionContratoRequest request)
+    {
+        try
+        {
+            var usuarioId = ObtenerUsuarioId();
+            var contrato = await _contratoService.RegistrarReinversionAsync(id, request, usuarioId);
+            return Ok(contrato);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning($"Operación no permitida: {ex.Message}");
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning($"Validación fallida: {ex.Message}");
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error al registrar reinversión: {ex.Message}", ex);
+            return StatusCode(500, new { error = "Error interno al registrar reinversión." });
+        }
+    }
+
+    [HttpPost("{id}/inyeccion-capital")]
+    [ProducesResponseType(typeof(ContratoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ContratoResponse>> RegistrarInyeccionCapital(int id, [FromBody] InyeccionCapitalRequest request)
+    {
+        try
+        {
+            var usuarioId = ObtenerUsuarioId();
+            var contrato = await _contratoService.RegistrarInyeccionCapitalAsync(id, request, usuarioId);
+            return Ok(contrato);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning($"Operación no permitida: {ex.Message}");
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning($"Validación fallida: {ex.Message}");
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error al registrar inyección de capital: {ex.Message}", ex);
+            return StatusCode(500, new { error = "Error interno al registrar inyección de capital." });
+        }
+    }
+
     [HttpPost("{id}/unificar")]
     [ProducesResponseType(typeof(ContratoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -268,11 +313,12 @@ public class ContratosController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ContratoResponse>> UnificarContratos(
         int id,
-        [FromBody] List<int> contratosOrigenIds)
+        [FromBody] UnificarContratosRequest request)
     {
         try
         {
-            var contratoUnificado = await _contratoService.UnificarContratosAsync(id, contratosOrigenIds);
+            var usuarioId = ObtenerUsuarioId();
+            var contratoUnificado = await _contratoService.UnificarContratosAsync(id, request, usuarioId);
             return Ok(contratoUnificado);
         }
         catch (InvalidOperationException ex)
@@ -287,18 +333,16 @@ public class ContratosController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Desunifica un contrato
-    /// </summary>
     [HttpPost("{id}/desunificar")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> DesunificarContrato(int id)
+    public async Task<IActionResult> DesunificarContrato(int id, [FromBody] DesunificarContratoRequest request)
     {
         try
         {
-            var resultado = await _contratoService.DesunificarContratoAsync(id);
+            var usuarioId = ObtenerUsuarioId();
+            var resultado = await _contratoService.DesunificarContratoAsync(id, request, usuarioId);
             if (!resultado)
                 return NotFound(new { error = $"Contrato con ID {id} no encontrado." });
 
@@ -309,5 +353,65 @@ public class ContratosController : ControllerBase
             _logger.LogError($"Error al desunificar contrato: {ex.Message}", ex);
             return StatusCode(500, new { error = "Error interno al desunificar contrato." });
         }
+    }
+
+    [HttpGet("{id}/historial-financiero")]
+    [ProducesResponseType(typeof(IEnumerable<HistorialFinancieroItemResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IEnumerable<HistorialFinancieroItemResponse>>> ObtenerHistorialFinanciero(int id)
+    {
+        try
+        {
+            var historial = await _contratoService.ObtenerHistorialFinancieroAsync(id);
+            return Ok(historial);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error al obtener historial financiero: {ex.Message}", ex);
+            return StatusCode(500, new { error = "Error interno al obtener historial financiero." });
+        }
+    }
+
+    [HttpGet("{id}/eventos")]
+    [ProducesResponseType(typeof(IEnumerable<ContratoEventoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IEnumerable<ContratoEventoResponse>>> ObtenerEventos(int id)
+    {
+        try
+        {
+            var eventos = await _contratoService.ObtenerEventosAsync(id);
+            return Ok(eventos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error al obtener eventos: {ex.Message}", ex);
+            return StatusCode(500, new { error = "Error interno al obtener eventos." });
+        }
+    }
+
+    [HttpGet("{id}/auditoria")]
+    [ProducesResponseType(typeof(IEnumerable<AuditoriaContratoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IEnumerable<AuditoriaContratoResponse>>> ObtenerAuditoria(int id)
+    {
+        try
+        {
+            var auditoria = await _contratoService.ObtenerAuditoriaAsync(id);
+            return Ok(auditoria);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error al obtener auditoría: {ex.Message}", ex);
+            return StatusCode(500, new { error = "Error interno al obtener auditoría." });
+        }
+    }
+
+    private int ObtenerUsuarioId()
+    {
+        var rawUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(rawUserId, out var usuarioId) || usuarioId <= 0)
+            throw new InvalidOperationException("No se pudo determinar el usuario autenticado.");
+
+        return usuarioId;
     }
 }

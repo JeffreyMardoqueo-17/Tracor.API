@@ -36,8 +36,8 @@ public class AuthController : ControllerBase
         Response.Cookies.Delete(AccessTokenCookieName, new CookieOptions
         {
             HttpOnly = true,
-            Secure = Request.IsHttps,
-            SameSite = SameSiteMode.Lax,
+            Secure = Request.IsHttps || !Request.Host.Host.Contains("localhost"),
+            SameSite = Request.IsHttps || !Request.Host.Host.Contains("localhost") ? SameSiteMode.None : SameSiteMode.Lax,
             Path = "/"
         });
 
@@ -65,8 +65,8 @@ public class AuthController : ControllerBase
         Response.Cookies.Append(AccessTokenCookieName, token, new CookieOptions
         {
             HttpOnly = true,
-            Secure = Request.IsHttps,
-            SameSite = SameSiteMode.Lax,
+            Secure = Request.IsHttps || !Request.Host.Host.Contains("localhost"),
+            SameSite = Request.IsHttps || !Request.Host.Host.Contains("localhost") ? SameSiteMode.None : SameSiteMode.Lax,
             Expires = expiresAtUtc,
             Path = "/"
         });

@@ -1,4 +1,5 @@
 using Tradecorp.Domain.Models.Entities;
+using Tradecorp.Domain.Models.Enums;
 using Tradecorp.Application.DTOs;
 using Tradecorp.Application.Abstractions.Services;
 using Tradecorp.Application.Abstractions.Persistence;
@@ -28,6 +29,12 @@ public class ClienteService : IClienteService
         if (string.IsNullOrWhiteSpace(request.NombreCompleto))
             throw new ArgumentException("El nombre del cliente es requerido.");
 
+        if (!request.TipoPersona.HasValue)
+            throw new ArgumentException("El tipo de persona es requerido.");
+
+        if (!Enum.IsDefined(typeof(ClienteTipoPersona), request.TipoPersona.Value))
+            throw new ArgumentException("El tipo de persona proporcionado no es válido.");
+
         // Validar unicidad del documento si se proporciona
         if (!string.IsNullOrEmpty(request.NumeroDocumento))
         {
@@ -42,7 +49,7 @@ public class ClienteService : IClienteService
             NombreCompleto = request.NombreCompleto.Trim(),
             TipoDocumento = request.TipoDocumento,
             NumeroDocumento = request.NumeroDocumento,
-            TipoPersona = request.TipoPersona,
+            TipoPersona = request.TipoPersona.Value,
             Correo = request.Correo,
             Telefono = request.Telefono,
             Notas = request.Notas,

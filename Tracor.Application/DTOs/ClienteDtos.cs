@@ -1,3 +1,5 @@
+using Tradecorp.Domain.Models.Enums;
+
 namespace Tradecorp.Application.DTOs;
 
 /// <summary>
@@ -21,9 +23,9 @@ public class CreateClienteRequest
     public string? NumeroDocumento { get; set; }
 
     /// <summary>
-    /// Tipo de persona (Natural, Jurídica)
+    /// Tipo de persona (Natural, Juridica)
     /// </summary>
-    public string? TipoPersona { get; set; }
+    public ClienteTipoPersona? TipoPersona { get; set; }
 
     /// <summary>
     /// Correo electrónico del cliente
@@ -131,7 +133,7 @@ public class ClienteResponse
     /// <summary>
     /// Tipo de persona
     /// </summary>
-    public string? TipoPersona { get; set; }
+    public ClienteTipoPersona TipoPersona { get; set; }
 
     /// <summary>
     /// Correo electrónico

@@ -61,7 +61,7 @@ builder.Services.AddRateLimiter(options =>
 
     options.AddFixedWindowLimiter(policyName: "clientesPolicy", limiterOptions =>
     {
-        limiterOptions.PermitLimit = 10; // Máximo 2 solicitudes
+        limiterOptions.PermitLimit = 10; // Máximo 10 solicitudes
         limiterOptions.Window = TimeSpan.FromSeconds(10); // En 10 segundos
         limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         limiterOptions.QueueLimit = 0; // No encolar, rechazar inmediatamente
@@ -105,36 +105,17 @@ builder.Services.AddAuthentication(options =>
 
 var app = builder.Build();
 
-// Apply migrations or create database
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    try
-    {
-        // Try to apply migrations
-        await db.Database.MigrateAsync();
-    }
-    catch (Exception migrationEx)
-    {
-        // If migration fails (e.g., table already exists), try to ensure created
-        app.Logger.LogWarning($"Migration failed, trying EnsureCreated: {migrationEx.Message}");
-        try
-        {
-            await db.Database.EnsureCreatedAsync();
-        }
-        catch (Exception ensureEx)
-        {
-            app.Logger.LogError($"Failed to create or migrate database: {ensureEx.Message}");
-            throw;
-        }
-    }
+    await db.Database.MigrateAsync();
 }
 
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    
+
     // Seed Usuario admin if not exists
     if (!await db.Usuarios.AnyAsync())
     {
@@ -162,8 +143,8 @@ if (app.Environment.IsDevelopment())
 app.UseRateLimiter();
 app.UseGlobalExceptionHandling();
 
-app.UseHttpsRedirection();
 app.UseCors("Frontend");
+app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -1,3 +1,5 @@
+using Tradecorp.Domain.Models.Enums;
+
 namespace Tradecorp.Domain.Models.Entities;
 
 public class Cliente
@@ -7,7 +9,7 @@ public class Cliente
     public string NombreCompleto { get; set; } = string.Empty;
     public string? TipoDocumento { get; set; }
     public string? NumeroDocumento { get; set; }
-    public string? TipoPersona { get; set; }
+    public ClienteTipoPersona TipoPersona { get; set; }
     public int UsuarioEjecutivoId { get; set; }
     public string? Correo { get; set; }
     public string? Telefono { get; set; }

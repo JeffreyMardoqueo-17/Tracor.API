@@ -17,7 +17,9 @@ public static class ServiceCollectionExtensions
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("No se encontro la cadena de conexion 'DefaultConnection'.");
 
-        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<AppDbContext>(options =>
+            options.UseNpgsql(connectionString, npgsql =>
+                npgsql.MigrationsAssembly(typeof(AppDbContext).Assembly.GetName().Name)));
         services.AddScoped<IDbConnectionFactory, NpgsqlDbConnectionFactory>();
         
         // Users, auth and security
@@ -40,6 +42,10 @@ public static class ServiceCollectionExtensions
         // Contratos
         services.AddScoped<IContratoRepository, ContratoRepository>();
         services.AddScoped<IContratoService, ContratoService>();
+
+        // Pagos
+        services.AddScoped<IPagoRepository, PagoRepository>();
+        services.AddScoped<IPagoService, PagoService>();
 
         return services;
     }

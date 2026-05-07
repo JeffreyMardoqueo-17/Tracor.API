@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Tradecorp.Domain.Models.Entities;
+using Tradecorp.Domain.Models.Enums;
 
 namespace Tradecorp.Infrastructure.Data;
 
@@ -15,6 +16,8 @@ public class AppDbContext : DbContext
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<ClienteCuenta> ClienteCuentas => Set<ClienteCuenta>();
     public DbSet<ClienteBeneficiario> ClientesBeneficiarios => Set<ClienteBeneficiario>();
+    public DbSet<ContratoBeneficiario> ContratoBeneficiarios => Set<ContratoBeneficiario>();
+    public DbSet<AuditoriaContrato> AuditoriaContratos => Set<AuditoriaContrato>();
     public DbSet<ClienteBeneficiarioHistorico> ClientesBeneficiariosHistorico => Set<ClienteBeneficiarioHistorico>();
     public DbSet<Contrato> Contratos => Set<Contrato>();
     public DbSet<ContratoRelacion> ContratoRelaciones => Set<ContratoRelacion>();
@@ -97,13 +100,19 @@ public class AppDbContext : DbContext
     {
         var entity = modelBuilder.Entity<Cliente>();
 
-        entity.ToTable("Clientes");
+        entity.ToTable("Clientes", tableBuilder =>
+            tableBuilder.HasCheckConstraint(
+                "CK_Clientes_TipoPersona",
+                "\"TipoPersona\" IN ('Natural', 'Juridica')"));
         entity.HasKey(x => x.Id);
         entity.Property(x => x.CodigoCliente).HasMaxLength(50).IsRequired();
         entity.Property(x => x.NombreCompleto).HasMaxLength(200).IsRequired();
         entity.Property(x => x.TipoDocumento).HasMaxLength(50);
         entity.Property(x => x.NumeroDocumento).HasMaxLength(50);
-        entity.Property(x => x.TipoPersona).HasMaxLength(50);
+        entity.Property(x => x.TipoPersona)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
         entity.Property(x => x.Correo).HasMaxLength(150);
         entity.Property(x => x.Telefono).HasMaxLength(50);
         entity.Property(x => x.Notas).HasMaxLength(500);
@@ -150,12 +159,33 @@ public class AppDbContext : DbContext
         entity.ToTable("Contratos");
         entity.HasKey(x => x.Id);
         entity.Property(x => x.NumeroContrato).HasMaxLength(50).IsRequired();
-        entity.Property(x => x.CapitalInicial).HasPrecision(18, 2);
-        entity.Property(x => x.PorcentajeMensual).HasPrecision(5, 2);
-        entity.Property(x => x.ComisionRetiro).HasPrecision(5, 2).HasDefaultValue(0m);
+        entity.Property(x => x.CapitalInicial)
+            .HasField("_capitalInicial")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasPrecision(18, 2);
+        entity.Property(x => x.CapitalActual)
+            .HasField("_capitalActual")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasPrecision(18, 2);
+        entity.Property(x => x.PorcentajeMensual)
+            .HasField("_porcentajeMensual")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasPrecision(5, 2);
+        entity.Property(x => x.ComisionRetiro)
+            .HasField("_comisionRetiro")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasPrecision(5, 2)
+            .HasDefaultValue(0m);
+        entity.Property(x => x.Estado)
+            .HasField("_estado")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .IsRequired();
         entity.Property(x => x.ModalidadRendimiento).HasConversion<string>().HasMaxLength(50).IsRequired();
         entity.Property(x => x.PermiteUnificacion).HasDefaultValue(true);
-        entity.Property(x => x.Activo).HasDefaultValue(true);
+        entity.Ignore(x => x.Activo);
+        entity.Ignore(x => x.PeriodoPago);
         entity.Property(x => x.FechaCreacion).HasDefaultValueSql("NOW()");
         entity.HasIndex(x => x.NumeroContrato).IsUnique();
 

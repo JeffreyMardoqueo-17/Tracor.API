@@ -2,70 +2,23 @@ using Tradecorp.Application.DTOs;
 
 namespace Tradecorp.Application.Abstractions.Services;
 
-/// <summary>
-/// Servicio de negocio para Contratos
-/// Aplica reglas de inversión y validaciones
-/// </summary>
 public interface IContratoService
 {
-    /// <summary>
-    /// Crea un nuevo contrato para un cliente
-    /// Reglas:
-    /// - Capital > 0
-    /// - Porcentaje entre 6% y 8.50%
-    /// - Cliente debe existir
-    /// - Se asignan beneficiarios
-    /// </summary>
-    Task<ContratoResponse> CrearContratoAsync(CreateContratoRequest request);
-
-    /// <summary>
-    /// Obtiene un contrato específico con todos sus detalles
-    /// </summary>
+    Task<ContratoResponse> CrearContratoAsync(CreateContratoRequest request, int usuarioId);
     Task<ContratoResponse?> ObtenerContratoAsync(int contratoId);
-
-    /// <summary>
-    /// Obtiene todos los contratos de un cliente
-    /// </summary>
+    Task<IEnumerable<ContratoListaResponse>> ObtenerContratosAsync(ContratoFiltroRequest? filtro);
     Task<IEnumerable<ContratoListaResponse>> ObtenerContratosClienteAsync(int clienteId);
-
-    /// <summary>
-    /// Obtiene solo los contratos activos de un cliente
-    /// </summary>
     Task<IEnumerable<ContratoListaResponse>> ObtenerContratosActivosClienteAsync(int clienteId);
-
-    /// <summary>
-    /// Obtiene todos los contratos activos del sistema
-    /// </summary>
     Task<IEnumerable<ContratoListaResponse>> ObtenerTodosContratosActivosAsync();
-
-    /// <summary>
-    /// Actualiza información del contrato
-    /// Solo campos específicos pueden editarse en contratos activos
-    /// </summary>
-    Task<ContratoResponse> ActualizarContratoAsync(int contratoId, UpdateContratoRequest request);
-
-    /// <summary>
-    /// Finaliza un contrato (marca como inactivo)
-    /// </summary>
-    Task<bool> FinalizarContratoAsync(int contratoId);
-
-    /// <summary>
-    /// Asigna beneficiarios existentes a un contrato
-    /// </summary>
-    Task<IEnumerable<BeneficiarioContratoResponse>> AsignarBeneficiariosAsync(int contratoId, List<AsignarBeneficiarioRequest> beneficiarios);
-
-    /// <summary>
-    /// Obtiene los beneficiarios asignados a un contrato
-    /// </summary>
+    Task<ContratoResponse> ActualizarContratoAsync(int contratoId, UpdateContratoRequest request, int usuarioId);
+    Task<bool> FinalizarContratoAsync(int contratoId, int usuarioId, string? observacion = null);
+    Task<IEnumerable<BeneficiarioContratoResponse>> AsignarBeneficiariosAsync(int contratoId, List<AsignarBeneficiarioRequest> beneficiarios, int usuarioId);
     Task<IEnumerable<BeneficiarioContratoResponse>> ObtenerBeneficiariosContratoAsync(int contratoId);
-
-    /// <summary>
-    /// Unifica múltiples contratos en uno solo
-    /// </summary>
-    Task<ContratoResponse> UnificarContratosAsync(int contratoDestinoId, List<int> contratosOrigenIds);
-
-    /// <summary>
-    /// Desunifica un contrato (lo separa de otros)
-    /// </summary>
-    Task<bool> DesunificarContratoAsync(int contratoId);
+    Task<ContratoResponse> RegistrarReinversionAsync(int contratoId, ReinversionContratoRequest request, int usuarioId);
+    Task<ContratoResponse> RegistrarInyeccionCapitalAsync(int contratoId, InyeccionCapitalRequest request, int usuarioId);
+    Task<ContratoResponse> UnificarContratosAsync(int contratoDestinoId, UnificarContratosRequest request, int usuarioId);
+    Task<bool> DesunificarContratoAsync(int contratoId, DesunificarContratoRequest request, int usuarioId);
+    Task<IEnumerable<HistorialFinancieroItemResponse>> ObtenerHistorialFinancieroAsync(int contratoId);
+    Task<IEnumerable<ContratoEventoResponse>> ObtenerEventosAsync(int contratoId);
+    Task<IEnumerable<AuditoriaContratoResponse>> ObtenerAuditoriaAsync(int contratoId);
 }

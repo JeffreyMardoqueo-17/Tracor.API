@@ -5,7 +5,7 @@ Esta solución queda preparada para levantar el backend y PostgreSQL con `docker
 ## Servicios
 
 - `api`: construye la imagen desde `Tracor.API/Dockerfile` (entrypoint: `Tradecorp.API.dll`) y expone la API en `http://localhost:8080`.
-- `db`: usa `postgres:16-alpine`, expone PostgreSQL en `localhost:5432` y monta `Tracor.Infrastructure/database/schema.sql` como script de inicialización.
+- `db`: usa `postgres:16-alpine`, expone PostgreSQL en `localhost:5432` y arranca con un volumen persistente vacío para que EF Core aplique las migraciones.
 - `db`: se ejecuta en zona horaria UTC (`TZ=UTC`, `PGTZ=UTC`) para mantener consistencia en cálculos diarios y cortes.
 
 ## Cómo levantar todo
@@ -19,8 +19,8 @@ docker compose up -d --build
 ## Qué hace la base de datos
 
 - Crea la base `Tradecorp`.
-- Ejecuta `schema.sql` solo en el primer arranque del volumen `postgres_data`.
 - Mantiene los datos en un volumen persistente para que no se pierdan al reiniciar los contenedores.
+- El esquema lo controla EF Core mediante migraciones.
 
 ## Variables importantes
 
@@ -34,7 +34,7 @@ Eso permite que la misma aplicación funcione también fuera de Docker usando `a
 
 - PostgreSQL inicia primero.
 - El healthcheck espera a que la base responda.
-- La API arranca después y usa el host `db` dentro de la red de Compose.
+- La API arranca después, usa el host `db` dentro de la red de Compose y aplica las migraciones antes de atender tráfico.
 
 ## Puertos
 
