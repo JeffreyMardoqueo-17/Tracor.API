@@ -56,6 +56,7 @@ public static class ServiceCollectionExtensions
         // Contratos
         services.AddScoped<IContratoRepository, ContratoRepository>();
         services.AddScoped<IContratoService, ContratoService>();
+        services.AddScoped<IContratoProjectionService, ContratoProjectionService>();
 
         // Pagos
         services.AddScoped<IPagoRepository, PagoRepository>();

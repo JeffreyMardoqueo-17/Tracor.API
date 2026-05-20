@@ -16,13 +16,16 @@ namespace Tradecorp.API.Controllers;
 public class ContratosController : ControllerBase
 {
     private readonly IContratoService _contratoService;
+    private readonly IContratoProjectionService _proyeccionService;
     private readonly ILogger<ContratosController> _logger;
 
     public ContratosController(
         IContratoService contratoService,
+        IContratoProjectionService proyeccionService,
         ILogger<ContratosController> logger)
     {
         _contratoService = contratoService ?? throw new ArgumentNullException(nameof(contratoService));
+        _proyeccionService = proyeccionService ?? throw new ArgumentNullException(nameof(proyeccionService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -403,6 +406,50 @@ public class ContratosController : ControllerBase
         {
             _logger.LogError($"Error al obtener auditoría: {ex.Message}", ex);
             return StatusCode(500, new { error = "Error interno al obtener auditoría." });
+        }
+    }
+
+    [HttpGet("{id}/proyeccion-24m")]
+    [ProducesResponseType(typeof(ContratoProjectionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ContratoProjectionResponse>> ObtenerProyeccion24Meses(int id)
+    {
+        try
+        {
+            var proyeccion = await _proyeccionService.ObtenerProyeccion24MesesAsync(id);
+            if (proyeccion is null)
+                return NotFound(new { error = $"Contrato con ID {id} no encontrado." });
+
+            return Ok(proyeccion);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error al obtener proyección del contrato: {ex.Message}", ex);
+            return StatusCode(500, new { error = "Error interno al obtener proyección del contrato." });
+        }
+    }
+
+    [HttpPost("simulacion")]
+    [ProducesResponseType(typeof(ContratoProjectionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ContratoProjectionResponse>> SimularContrato([FromBody] SimularContratoRequest request)
+    {
+        try
+        {
+            var simulacion = await _proyeccionService.SimularAsync(request);
+            return Ok(simulacion);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Validación fallida al simular contrato.");
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al simular contrato.");
+            return StatusCode(500, new { error = "Error interno al simular contrato." });
         }
     }
 
