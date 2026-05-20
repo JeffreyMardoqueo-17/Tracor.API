@@ -25,6 +25,13 @@ public class ContratoRepository : IContratoRepository
         return await _dbContext.Clientes.AnyAsync(c => c.Id == clienteId);
     }
 
+    public async Task<bool> ClienteTieneContratosActivosAsync(int clienteId)
+    {
+        return await _dbContext.Contratos.AnyAsync(c =>
+            c.ClienteId == clienteId &&
+            c.Estado == EstadoContrato.Activo);
+    }
+
     public async Task<bool> ContratoExisteAsync(int contratoId)
     {
         return await _dbContext.Contratos.AnyAsync(c => c.Id == contratoId);
@@ -281,6 +288,7 @@ public class ContratoRepository : IContratoRepository
     {
         var contrato = await _dbContext.Contratos
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.Cliente)
             .Include(c => c.Beneficiarios)
                 .ThenInclude(b => b.ClienteBeneficiario)
@@ -382,6 +390,7 @@ public class ContratoRepository : IContratoRepository
     {
         return await _dbContext.Contratos
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(c => c.Cliente)
             .Include(c => c.Beneficiarios)
                 .ThenInclude(b => b.ClienteBeneficiario)
@@ -398,9 +407,8 @@ public class ContratoRepository : IContratoRepository
     public async Task<IEnumerable<Contrato>> GetActivosPorClienteAsync(int clienteId)
     {
         return await _dbContext.Contratos
-            .Where(c => c.ClienteId == clienteId && c.Estado.ToString() == "Activo")
+            .Where(c => c.ClienteId == clienteId && c.Estado == EstadoContrato.Activo)
             .AsNoTracking()
-            .Include(c => c.Beneficiarios)
             .ToListAsync();
     }
 
@@ -409,7 +417,6 @@ public class ContratoRepository : IContratoRepository
         return await _dbContext.Contratos
             .Where(c => c.ClienteId == clienteId)
             .AsNoTracking()
-            .Include(c => c.Beneficiarios)
             .OrderByDescending(c => c.FechaCreacion)
             .ToListAsync();
     }

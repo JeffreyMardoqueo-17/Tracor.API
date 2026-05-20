@@ -101,9 +101,21 @@ public class UpdateClienteRequest
 }
 
 /// <summary>
-/// DTO de respuesta para un cliente
+/// DTO exclusivo para la respuesta de creación de un cliente.
+/// Solo contiene los datos mínimos. Sin subqueries, sin joins, sin cálculos.
 /// </summary>
-public class ClienteResponse
+public class CreateClienteResponse
+{
+    public int Id { get; set; }
+    public string CodigoCliente { get; set; } = string.Empty;
+    public string NombreCompleto { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// DTO de respuesta resumida para un cliente.
+/// Se usa en listados y como respuesta del alta para evitar cargar relaciones innecesarias.
+/// </summary>
+public class ClienteResumenResponse
 {
     /// <summary>
     /// ID del cliente
@@ -166,19 +178,9 @@ public class ClienteResponse
     public string? NombreEjecutivo { get; set; }
 
     /// <summary>
-    /// Cuentas bancarias del cliente
+    /// Cuenta bancaria principal del cliente, si existe
     /// </summary>
-    public ICollection<ClienteCuentaResponse> CuentasBancarias { get; set; } = new List<ClienteCuentaResponse>();
-
-    /// <summary>
-    /// Beneficiarios del cliente
-    /// </summary>
-    public ICollection<ClienteBeneficiarioResponse> Beneficiarios { get; set; } = new List<ClienteBeneficiarioResponse>();
-
-    /// <summary>
-    /// Contratos del cliente
-    /// </summary>
-    public ICollection<ContratoResumenResponse> Contratos { get; set; } = new List<ContratoResumenResponse>();
+    public ClienteCuentaResponse? CuentaBancariaPrincipal { get; set; }
 
     /// <summary>
     /// Indica si el cliente tiene al menos un contrato activo
@@ -194,6 +196,28 @@ public class ClienteResponse
     /// Suma del porcentaje de beneficiarios activos (debe ser 100% si está completo)
     /// </summary>
     public decimal SumaPorcentajeBeneficiarios { get; set; }
+}
+
+/// <summary>
+/// DTO de detalle para un cliente.
+/// Solo se usa cuando el caso de uso realmente necesita cuentas, beneficiarios y contratos.
+/// </summary>
+public class ClienteDetalleResponse : ClienteResumenResponse
+{
+    /// <summary>
+    /// Todas las cuentas bancarias del cliente
+    /// </summary>
+    public ICollection<ClienteCuentaResponse> CuentasBancarias { get; set; } = new List<ClienteCuentaResponse>();
+
+    /// <summary>
+    /// Beneficiarios del cliente
+    /// </summary>
+    public ICollection<ClienteBeneficiarioResponse> Beneficiarios { get; set; } = new List<ClienteBeneficiarioResponse>();
+
+    /// <summary>
+    /// Contratos del cliente
+    /// </summary>
+    public ICollection<ContratoResumenResponse> Contratos { get; set; } = new List<ContratoResumenResponse>();
 }
 
 /// <summary>

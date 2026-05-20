@@ -14,6 +14,7 @@ public interface IContratoRepository
     Task<string> GetProximoNumeroContratoAsync();
 
     Task<bool> ClienteExisteAsync(int clienteId);
+    Task<bool> ClienteTieneContratosActivosAsync(int clienteId);
     Task<bool> ContratoExisteAsync(int contratoId);
     Task<bool> ContratoActivoAsync(int contratoId);
     Task<int> ObtenerClienteIdContratoAsync(int contratoId);

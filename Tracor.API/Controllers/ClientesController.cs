@@ -34,10 +34,10 @@ public class ClientesController : ControllerBase
     /// Registra un nuevo cliente con su cuenta bancaria
     /// </summary>
     [HttpPost]
-    [ProducesResponseType(typeof(ClienteResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(CreateClienteResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<ClienteResponse>> RegistrarCliente([FromBody] CreateClienteRequest request)
+    public async Task<ActionResult<CreateClienteResponse>> RegistrarCliente([FromBody] CreateClienteRequest request)
     {
         try
         {
@@ -50,22 +50,38 @@ public class ClientesController : ControllerBase
             if (usuarioId == 0)
                 return Unauthorized("No se pudo obtener el ID del usuario.");
 
+            _logger.LogInformation(
+                "Registrando cliente. NombreCompleto={NombreCompleto} TipoPersona={TipoPersona} UsuarioEjecutivoId={UsuarioEjecutivoId} TieneCuentaBancaria={TieneCuentaBancaria}",
+                request.NombreCompleto,
+                request.TipoPersona,
+                usuarioId,
+                request.CuentaBancaria != null);
+
             var clienteCreado = await _clienteService.RegistrarClienteAsync(request, usuarioId);
             return CreatedAtAction(nameof(ObtenerCliente), new { id = clienteCreado.Id }, clienteCreado);
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning($"Validación fallida al registrar cliente: {ex.Message}");
+            _logger.LogWarning(ex,
+                "Validación fallida al registrar cliente. NombreCompleto={NombreCompleto} TipoPersona={TipoPersona}",
+                request.NombreCompleto,
+                request.TipoPersona);
             return BadRequest(new { error = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning($"Operación no permitida al registrar cliente: {ex.Message}");
+            _logger.LogWarning(ex,
+                "Operación no permitida al registrar cliente. NombreCompleto={NombreCompleto} TipoPersona={TipoPersona}",
+                request.NombreCompleto,
+                request.TipoPersona);
             return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Error al registrar cliente: {ex.Message}", ex);
+            _logger.LogError(ex,
+                "Error al registrar cliente. NombreCompleto={NombreCompleto} TipoPersona={TipoPersona}",
+                request.NombreCompleto,
+                request.TipoPersona);
             return StatusCode(500, new { error = "Error interno al registrar cliente." });
         }
     }
@@ -75,10 +91,10 @@ public class ClientesController : ControllerBase
     /// </summary>
     [HttpGet("{id}")]
     [EnableRateLimiting("clientesPolicy")] // Aplica limitacion para este enpoint
-    [ProducesResponseType(typeof(ClienteResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ClienteDetalleResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<ClienteResponse>> ObtenerCliente(int id)
+    public async Task<ActionResult<ClienteDetalleResponse>> ObtenerCliente(int id)
     {
         try
         {
@@ -100,10 +116,10 @@ public class ClientesController : ControllerBase
     /// </summary>
     [HttpGet("codigo/{codigoCliente}")]
     [EnableRateLimiting("clientesPolicy")]
-    [ProducesResponseType(typeof(ClienteResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ClienteDetalleResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<ClienteResponse>> ObtenerClientePorCodigo(string codigoCliente)
+    public async Task<ActionResult<ClienteDetalleResponse>> ObtenerClientePorCodigo(string codigoCliente)
     {
         try
         {
@@ -125,10 +141,10 @@ public class ClientesController : ControllerBase
     /// Obtiene todos los clientes de un ejecutivo especifico para que llos puedan editarlos    /// </summary>
     [HttpGet("ejecutivo/{ejecutivoId}")]
     [EnableRateLimiting("clientesPolicy")]
-    [ProducesResponseType(typeof(IEnumerable<ClienteResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<ClienteResumenResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<IEnumerable<ClienteResponse>>> ObtenerClientesPorEjecutivo(int ejecutivoId)
+    public async Task<ActionResult<IEnumerable<ClienteResumenResponse>>> ObtenerClientesPorEjecutivo(int ejecutivoId)
     {
         try
         {
@@ -151,9 +167,9 @@ public class ClientesController : ControllerBase
     /// </summary>
     [HttpGet]
     [EnableRateLimiting("clientesPolicy")]
-    [ProducesResponseType(typeof(IEnumerable<ClienteResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<ClienteResumenResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<IEnumerable<ClienteResponse>>> ObtenerClientes()
+    public async Task<ActionResult<IEnumerable<ClienteResumenResponse>>> ObtenerClientes()
     {
         try
         {
@@ -180,11 +196,11 @@ public class ClientesController : ControllerBase
     /// Actualiza información de un cliente
     /// </summary>
     [HttpPut("{id}")]
-    [ProducesResponseType(typeof(ClienteResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ClienteDetalleResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<ClienteResponse>> ActualizarCliente(int id, [FromBody] UpdateClienteRequest request)
+    public async Task<ActionResult<ClienteDetalleResponse>> ActualizarCliente(int id, [FromBody] UpdateClienteRequest request)
     {
         try
         {

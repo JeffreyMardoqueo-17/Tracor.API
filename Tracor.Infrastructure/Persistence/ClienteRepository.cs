@@ -21,57 +21,14 @@ public class ClienteRepository : IClienteRepository
     public async Task<Cliente?> GetByIdAsync(int id)
     {
         return await _dbContext.Clientes
-            .AsNoTracking()
-            .Include(c => c.UsuarioEjecutivo)
-            .Include(c => c.ClienteCuentas)
-                .ThenInclude(cc => cc.Banco)
-            .Include(c => c.Beneficiarios)
-            .Include(c => c.Contratos)
             .FirstOrDefaultAsync(c => c.Id == id);
-    }
-
-    public async Task<Cliente?> GetByCodigoClienteAsync(string codigoCliente)
-    {
-        return await _dbContext.Clientes
-            .AsNoTracking()
-            .Include(c => c.UsuarioEjecutivo)
-            .Include(c => c.ClienteCuentas)
-                .ThenInclude(cc => cc.Banco)
-            .Include(c => c.Beneficiarios)
-            .FirstOrDefaultAsync(c => c.CodigoCliente == codigoCliente);
     }
 
     public async Task<Cliente?> GetByNumeroDocumentoAsync(string numeroDocumento)
     {
         return await _dbContext.Clientes
-            .Include(c => c.UsuarioEjecutivo)
+            .AsNoTracking()
             .FirstOrDefaultAsync(c => c.NumeroDocumento == numeroDocumento);
-    }
-
-    public async Task<IEnumerable<Cliente>> GetAllActivosAsync()
-    {
-        return await _dbContext.Clientes
-            .Where(c => c.Activo)
-            .AsNoTracking()
-            .Include(c => c.UsuarioEjecutivo)
-            .Include(c => c.ClienteCuentas)
-                .ThenInclude(cc => cc.Banco)
-            .Include(c => c.Beneficiarios)
-            .Include(c => c.Contratos)
-            .OrderBy(c => c.NombreCompleto)
-            .ToListAsync();
-    }
-
-    public async Task<IEnumerable<Cliente>> GetByEjecutivoIdAsync(int ejecutivoId)
-    {
-        return await _dbContext.Clientes
-            .Where(c => c.UsuarioEjecutivoId == ejecutivoId && c.Activo)
-            .AsNoTracking()
-            .Include(c => c.ClienteCuentas)
-                .ThenInclude(cc => cc.Banco)
-            .Include(c => c.Beneficiarios)
-            .OrderBy(c => c.NombreCompleto)
-            .ToListAsync();
     }
 
     public async Task<Cliente> CreateAsync(Cliente cliente)
@@ -84,15 +41,8 @@ public class ClienteRepository : IClienteRepository
 
         _dbContext.Clientes.Add(cliente);
         await _dbContext.SaveChangesAsync();
-        
-        // Recargar con relaciones
-        return await _dbContext.Clientes
-            .Include(c => c.UsuarioEjecutivo)
-            .Include(c => c.ClienteCuentas)
-                .ThenInclude(cc => cc.Banco)
-            .Include(c => c.Beneficiarios)
-            .Include(c => c.Contratos)
-            .FirstAsync(c => c.Id == cliente.Id);
+
+        return cliente;
     }
 
     public async Task<Cliente> UpdateAsync(Cliente cliente)

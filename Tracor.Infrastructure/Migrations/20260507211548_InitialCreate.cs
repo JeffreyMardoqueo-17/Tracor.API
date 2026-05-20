@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -165,7 +166,7 @@ namespace Tradecorp.Infrastructure.Migrations
                     NombreCompleto = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     TipoDocumento = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     NumeroDocumento = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    TipoPersona = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    TipoPersona = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     UsuarioEjecutivoId = table.Column<int>(type: "integer", nullable: false),
                     Correo = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true),
                     Telefono = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
@@ -175,6 +176,7 @@ namespace Tradecorp.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Clientes", x => x.Id);
+                    table.CheckConstraint("CK_Clientes_TipoPersona", "\"TipoPersona\" IN ('Natural', 'Juridica')");
                     table.ForeignKey(
                         name: "FK_Clientes_Usuarios_UsuarioEjecutivoId",
                         column: x => x.UsuarioEjecutivoId,
@@ -325,20 +327,25 @@ namespace Tradecorp.Infrastructure.Migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClienteId = table.Column<int>(type: "integer", nullable: false),
-                    NumeroContrato = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    NumeroContrato = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     FechaInicio = table.Column<DateOnly>(type: "date", nullable: false),
                     CapitalInicial = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
+                    CapitalActual = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     PorcentajeMensual = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false),
                     ComisionRetiro = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m),
                     ModalidadRendimiento = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Estado = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     PermiteUnificacion = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
-                    Activo = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
                     FechaCreacion = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
                     FechaCierre = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Contratos", x => x.Id);
+                    table.CheckConstraint("CK_Contratos_CapitalActual", "\"CapitalActual\" >= 0");
+                    table.CheckConstraint("CK_Contratos_CapitalInicial", "\"CapitalInicial\" > 0");
+                    table.CheckConstraint("CK_Contratos_Estado", "\"Estado\" IN ('Activo', 'Finalizado', 'Unificado', 'Anulado')");
+                    table.CheckConstraint("CK_Contratos_ModalidadRendimiento", "\"ModalidadRendimiento\" IN ('Normal', 'InteresCompuesto')");
                     table.ForeignKey(
                         name: "FK_Contratos_Clientes_ClienteId",
                         column: x => x.ClienteId,
@@ -376,6 +383,37 @@ namespace Tradecorp.Infrastructure.Migrations
                         name: "FK_ClientesBeneficiariosHistorico_Clientes_ClienteId",
                         column: x => x.ClienteId,
                         principalTable: "Clientes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "AuditoriaContratos",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ContratoId = table.Column<int>(type: "integer", nullable: false),
+                    TipoMovimiento = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    ValorAnterior = table.Column<JsonDocument>(type: "jsonb", nullable: true),
+                    ValorNuevo = table.Column<JsonDocument>(type: "jsonb", nullable: true),
+                    Observacion = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    UsuarioId = table.Column<int>(type: "integer", nullable: false),
+                    FechaMovimiento = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AuditoriaContratos", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AuditoriaContratos_Contratos_ContratoId",
+                        column: x => x.ContratoId,
+                        principalTable: "Contratos",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_AuditoriaContratos_Usuarios_UsuarioId",
+                        column: x => x.UsuarioId,
+                        principalTable: "Usuarios",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -431,6 +469,34 @@ namespace Tradecorp.Infrastructure.Migrations
                         principalTable: "Contratos",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ContratoBeneficiarios",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ContratoId = table.Column<int>(type: "integer", nullable: false),
+                    ClienteBeneficiarioId = table.Column<int>(type: "integer", nullable: false),
+                    PorcentajeAsignado = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ContratoBeneficiarios", x => x.Id);
+                    table.CheckConstraint("CK_ContratoBeneficiarios_Porcentaje", "\"PorcentajeAsignado\" >= 0 AND \"PorcentajeAsignado\" <= 100");
+                    table.ForeignKey(
+                        name: "FK_ContratoBeneficiarios_ClientesBeneficiarios_ClienteBenefici~",
+                        column: x => x.ClienteBeneficiarioId,
+                        principalTable: "ClientesBeneficiarios",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ContratoBeneficiarios_Contratos_ContratoId",
+                        column: x => x.ContratoId,
+                        principalTable: "Contratos",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -660,6 +726,16 @@ namespace Tradecorp.Infrastructure.Migrations
                 column: "UsuarioId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_AuditoriaContratos_ContratoId",
+                table: "AuditoriaContratos",
+                column: "ContratoId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AuditoriaContratos_UsuarioId",
+                table: "AuditoriaContratos",
+                column: "UsuarioId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Bancos_Nombre",
                 table: "Bancos",
                 column: "Nombre",
@@ -742,6 +818,16 @@ namespace Tradecorp.Infrastructure.Migrations
                 column: "ConfiguracionSistemaId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ContratoBeneficiarios_ClienteBeneficiarioId",
+                table: "ContratoBeneficiarios",
+                column: "ClienteBeneficiarioId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ContratoBeneficiarios_ContratoId",
+                table: "ContratoBeneficiarios",
+                column: "ContratoId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ContratoRelaciones_ContratoDestinoId",
                 table: "ContratoRelaciones",
                 column: "ContratoDestinoId");
@@ -760,6 +846,11 @@ namespace Tradecorp.Infrastructure.Migrations
                 name: "IX_Contratos_ClienteId",
                 table: "Contratos",
                 column: "ClienteId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Contratos_Estado",
+                table: "Contratos",
+                column: "Estado");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Contratos_NumeroContrato",
@@ -857,10 +948,16 @@ namespace Tradecorp.Infrastructure.Migrations
                 name: "AsignacionDetalle");
 
             migrationBuilder.DropTable(
+                name: "AuditoriaContratos");
+
+            migrationBuilder.DropTable(
                 name: "ClientesBeneficiariosHistorico");
 
             migrationBuilder.DropTable(
                 name: "ConfiguracionContrato");
+
+            migrationBuilder.DropTable(
+                name: "ContratoBeneficiarios");
 
             migrationBuilder.DropTable(
                 name: "ContratoRelaciones");

@@ -14,24 +14,9 @@ public interface IClienteRepository
     Task<Cliente?> GetByIdAsync(int id);
 
     /// <summary>
-    /// Obtiene un cliente por su código único
-    /// </summary>
-    Task<Cliente?> GetByCodigoClienteAsync(string codigoCliente);
-
-    /// <summary>
     /// Obtiene un cliente por su número de documento
     /// </summary>
     Task<Cliente?> GetByNumeroDocumentoAsync(string numeroDocumento);
-
-    /// <summary>
-    /// Obtiene todos los clientes activos
-    /// </summary>
-    Task<IEnumerable<Cliente>> GetAllActivosAsync();
-
-    /// <summary>
-    /// Obtiene todos los clientes de un ejecutivo
-    /// </summary>
-    Task<IEnumerable<Cliente>> GetByEjecutivoIdAsync(int ejecutivoId);
 
     /// <summary>
     /// Crea un nuevo cliente

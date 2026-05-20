@@ -13,33 +13,33 @@ public interface IClienteService
     /// </summary>
     /// <param name="request">Datos del cliente a registrar</param>
     /// <param name="usuarioEjecutivoId">ID del usuario ejecutivo asignado</param>
-    /// <returns>Cliente registrado con código asignado</returns>
-    Task<ClienteResponse> RegistrarClienteAsync(CreateClienteRequest request, int usuarioEjecutivoId);
+    /// <returns>Cliente registrado con código asignado (solo Id, CodigoCliente, NombreCompleto)</returns>
+    Task<CreateClienteResponse> RegistrarClienteAsync(CreateClienteRequest request, int usuarioEjecutivoId);
 
     /// <summary>
     /// Obtiene un cliente con todas sus relaciones
     /// </summary>
-    Task<ClienteResponse?> ObtenerClienteAsync(int clienteId);
+    Task<ClienteDetalleResponse?> ObtenerClienteAsync(int clienteId);
 
     /// <summary>
     /// Obtiene un cliente por su código único
     /// </summary>
-    Task<ClienteResponse?> ObtenerClientePorCodigoAsync(string codigoCliente);
+    Task<ClienteDetalleResponse?> ObtenerClientePorCodigoAsync(string codigoCliente);
 
     /// <summary>
     /// Obtiene todos los clientes activos con información resumida
     /// </summary>
-    Task<IEnumerable<ClienteResponse>> ObtenerClientesActivosAsync();
+    Task<IEnumerable<ClienteResumenResponse>> ObtenerClientesActivosAsync();
 
     /// <summary>
     /// Obtiene todos los clientes de un ejecutivo
     /// </summary>
-    Task<IEnumerable<ClienteResponse>> ObtenerClientesPorEjecutivoAsync(int ejecutivoId);
+    Task<IEnumerable<ClienteResumenResponse>> ObtenerClientesPorEjecutivoAsync(int ejecutivoId);
 
     /// <summary>
     /// Actualiza información básica del cliente
     /// </summary>
-    Task<ClienteResponse> ActualizarClienteAsync(int clienteId, UpdateClienteRequest request);
+    Task<ClienteDetalleResponse> ActualizarClienteAsync(int clienteId, UpdateClienteRequest request);
 
     /// <summary>
     /// Desactiva un cliente (soft delete)

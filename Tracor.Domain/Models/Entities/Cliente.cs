@@ -18,7 +18,6 @@ public class Cliente
 
     public Usuario UsuarioEjecutivo { get; set; } = null!;
     public ICollection<ClienteCuenta> ClienteCuentas { get; set; } = new List<ClienteCuenta>();
-    public ICollection<Contrato> Contratos { get; set; } = new List<Contrato>();
     public ICollection<Pago> Pagos { get; set; } = new List<Pago>();
     public ICollection<AgendaPago> AgendaPagos { get; set; } = new List<AgendaPago>();
     public ICollection<ClienteBeneficiario> Beneficiarios { get; set; } = new List<ClienteBeneficiario>();

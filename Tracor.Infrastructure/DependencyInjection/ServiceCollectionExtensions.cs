@@ -44,6 +44,7 @@ public static class ServiceCollectionExtensions
 
         // Clientes y Beneficiarios
         services.AddScoped<IClienteRepository, ClienteRepository>();
+        services.AddScoped<IClienteQueryRepository, ClienteQueryRepository>();
         services.AddScoped<IClienteBeneficiarioRepository, ClienteBeneficiarioRepository>();
         services.AddScoped<IClienteService, ClienteService>();
         services.AddScoped<IBeneficiarioService, BeneficiarioService>();

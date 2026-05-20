@@ -47,7 +47,9 @@ public class AppDbContext : DbContext
         ConfigureClienteBeneficiarios(modelBuilder);
         ConfigureClienteBeneficiariosHistorico(modelBuilder);
         ConfigureContratos(modelBuilder);
+        ConfigureContratoBeneficiarios(modelBuilder);
         ConfigureContratoRelaciones(modelBuilder);
+        ConfigureAuditoriaContratos(modelBuilder);
         ConfigureConfiguracionContrato(modelBuilder);
         ConfigureConfiguracionSistema(modelBuilder);
         ConfigureConfiguracionCortePago(modelBuilder);
@@ -156,9 +158,19 @@ public class AppDbContext : DbContext
     {
         var entity = modelBuilder.Entity<Contrato>();
 
-        entity.ToTable("Contratos");
+        entity.ToTable("Contratos", tableBuilder =>
+        {
+            tableBuilder.HasCheckConstraint("CK_Contratos_CapitalInicial", "\"CapitalInicial\" > 0");
+            tableBuilder.HasCheckConstraint("CK_Contratos_CapitalActual", "\"CapitalActual\" >= 0");
+            tableBuilder.HasCheckConstraint(
+                "CK_Contratos_ModalidadRendimiento",
+                "\"ModalidadRendimiento\" IN ('Normal', 'InteresCompuesto')");
+            tableBuilder.HasCheckConstraint(
+                "CK_Contratos_Estado",
+                "\"Estado\" IN ('Activo', 'Finalizado', 'Unificado', 'Anulado')");
+        });
         entity.HasKey(x => x.Id);
-        entity.Property(x => x.NumeroContrato).HasMaxLength(50).IsRequired();
+        entity.Property(x => x.NumeroContrato).HasMaxLength(100).IsRequired();
         entity.Property(x => x.CapitalInicial)
             .HasPrecision(18, 2)
             .IsRequired();
@@ -186,10 +198,36 @@ public class AppDbContext : DbContext
         entity.Ignore(x => x.PeriodoPago);
         entity.Property(x => x.FechaCreacion).HasDefaultValueSql("NOW()");
         entity.HasIndex(x => x.NumeroContrato).IsUnique();
+        entity.HasIndex(x => x.ClienteId);
+        entity.HasIndex(x => x.Estado);
 
         entity.HasOne(x => x.Cliente)
-            .WithMany(x => x.Contratos)
+            .WithMany()
             .HasForeignKey(x => x.ClienteId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private static void ConfigureContratoBeneficiarios(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<ContratoBeneficiario>();
+
+        entity.ToTable("ContratoBeneficiarios", tableBuilder =>
+            tableBuilder.HasCheckConstraint(
+                "CK_ContratoBeneficiarios_Porcentaje",
+                "\"PorcentajeAsignado\" >= 0 AND \"PorcentajeAsignado\" <= 100"));
+        entity.HasKey(x => x.Id);
+        entity.Property(x => x.PorcentajeAsignado)
+            .HasPrecision(5, 2)
+            .IsRequired();
+
+        entity.HasOne(x => x.Contrato)
+            .WithMany(x => x.Beneficiarios)
+            .HasForeignKey(x => x.ContratoId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasOne(x => x.ClienteBeneficiario)
+            .WithMany()
+            .HasForeignKey(x => x.ClienteBeneficiarioId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 
@@ -218,6 +256,33 @@ public class AppDbContext : DbContext
 
         entity.HasOne(x => x.Usuario)
             .WithMany(x => x.RelacionesContratoEjecutadas)
+            .HasForeignKey(x => x.UsuarioId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+
+    private static void ConfigureAuditoriaContratos(ModelBuilder modelBuilder)
+    {
+        var entity = modelBuilder.Entity<AuditoriaContrato>();
+
+        entity.ToTable("AuditoriaContratos");
+        entity.HasKey(x => x.Id);
+        entity.Property(x => x.TipoMovimiento)
+            .HasConversion<string>()
+            .HasMaxLength(100)
+            .IsRequired();
+        entity.Property(x => x.ValorAnterior).HasColumnType("jsonb");
+        entity.Property(x => x.ValorNuevo).HasColumnType("jsonb");
+        entity.Property(x => x.Observacion).HasMaxLength(1000);
+        entity.Property(x => x.FechaMovimiento).HasDefaultValueSql("NOW()");
+        entity.HasIndex(x => x.ContratoId);
+
+        entity.HasOne(x => x.Contrato)
+            .WithMany()
+            .HasForeignKey(x => x.ContratoId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        entity.HasOne(x => x.Usuario)
+            .WithMany()
             .HasForeignKey(x => x.UsuarioId)
             .OnDelete(DeleteBehavior.Restrict);
     }

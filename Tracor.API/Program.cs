@@ -1,13 +1,15 @@
-using Tradecorp.Infrastructure.DependencyInjection;
-using Tradecorp.API.Middleware;
-using Tradecorp.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
+using Tradecorp.API.Middleware;
+using Tradecorp.API.Serialization;
+using Tradecorp.Infrastructure.Data;
+using Tradecorp.Infrastructure.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,11 +30,51 @@ var frontendOrigins = builder.Configuration
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
+        options.JsonSerializerOptions.Converters.Add(new ClienteTipoPersonaJsonConverter());
         options.JsonSerializerOptions.Converters.Add(
             new System.Text.Json.Serialization.JsonStringEnumConverter());
         options.JsonSerializerOptions.ReferenceHandler =
             System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
+
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var logger = context.HttpContext.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("ModelValidation");
+
+        var validationErrors = context.ModelState
+            .Where(entry => entry.Value?.Errors.Count > 0)
+            .ToDictionary(
+                entry => entry.Key,
+                entry => entry.Value!.Errors
+                    .Select(error => string.IsNullOrWhiteSpace(error.ErrorMessage)
+                        ? "Invalid value."
+                        : error.ErrorMessage)
+                    .ToArray());
+
+        logger.LogWarning(
+            "Model validation failed. Method={Method} Path={Path} TraceId={TraceId} Errors={@Errors}",
+            context.HttpContext.Request.Method,
+            context.HttpContext.Request.Path,
+            context.HttpContext.TraceIdentifier,
+            validationErrors);
+
+        var problemDetails = new ValidationProblemDetails(context.ModelState)
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "One or more validation errors occurred.",
+            Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+            Instance = context.HttpContext.Request.Path
+        };
+
+        problemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+
+        return new BadRequestObjectResult(problemDetails);
+    };
+});
 
 builder.Services.AddCors(options =>
 {
@@ -51,6 +93,7 @@ builder.Services.AddCors(options =>
 // ==========================
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHealthChecks();
 
 // ==========================
 // Infrastructure
@@ -100,6 +143,7 @@ builder.Services.AddAuthentication(options =>
             {
                 context.Token = token;
             }
+
             return Task.CompletedTask;
         }
     };
@@ -126,20 +170,25 @@ builder.Services.AddAuthentication(options =>
 var app = builder.Build();
 
 // ==========================
-// 🔥 MIGRACIÓN AUTOMÁTICA 🔥
+// MIGRACIONES
 // ==========================
-using (var scope = app.Services.CreateScope())
+var applyMigrationsOnStartup =
+    builder.Configuration.GetValue<bool?>("Database:ApplyMigrationsOnStartup")
+    ?? app.Environment.IsDevelopment();
+
+if (applyMigrationsOnStartup)
 {
+    using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
     try
     {
         dbContext.Database.Migrate();
-        Console.WriteLine("✅ Migraciones aplicadas correctamente");
+        Console.WriteLine("Migraciones aplicadas correctamente");
     }
     catch (Exception ex)
     {
-        Console.WriteLine("❌ Error aplicando migraciones");
+        Console.WriteLine("Error aplicando migraciones");
         Console.WriteLine(ex.Message);
         throw;
     }
@@ -164,5 +213,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/healthz");
 
 app.Run();

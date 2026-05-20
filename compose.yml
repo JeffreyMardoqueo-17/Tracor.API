@@ -26,18 +26,41 @@ services:
       context: .
       dockerfile: Tracor.API/Dockerfile
     container_name: tradecorp-api
-    restart: unless-stopped
+    restart: on-failure:5
     depends_on:
       db:
         condition: service_healthy
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 8080
+      Database__ApplyMigrationsOnStartup: "false"
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=Tradecorp;Username=postgres;Password=postgres
+      Jwt__Key: change_this_in_production_with_a_real_secret
     ports:
       - "8080:8080"
-    expose:
-      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  web:
+    build:
+      context: ../tradecorp-system
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8080
+    container_name: tradecorp-web
+    restart: on-failure:5
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
 
 volumes:
   postgres_data:

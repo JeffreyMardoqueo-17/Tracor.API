@@ -31,6 +31,19 @@ public class ContratoDapperRepository : IContratoRepository
         return await conn.ExecuteScalarAsync<bool>(sql, new { ClienteId = clienteId });
     }
 
+    public async Task<bool> ClienteTieneContratosActivosAsync(int clienteId)
+    {
+        const string sql = @"
+SELECT EXISTS(
+    SELECT 1
+    FROM ""Contratos""
+    WHERE ""ClienteId"" = @ClienteId
+      AND ""Estado"" = 'Activo'
+)";
+        using var conn = _connectionFactory.CreateConnection();
+        return await conn.ExecuteScalarAsync<bool>(sql, new { ClienteId = clienteId });
+    }
+
     public async Task<bool> ContratoExisteAsync(int contratoId)
     {
         const string sql = @"SELECT EXISTS(SELECT 1 FROM ""Contratos"" WHERE ""Id"" = @ContratoId)";
